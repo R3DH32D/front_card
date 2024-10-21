@@ -6,4 +6,4 @@
 
 <script setup>
 import Info from './components/info.vue'
-</script>
+</script> 

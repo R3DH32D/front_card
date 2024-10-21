@@ -15,4 +15,4 @@
 <script setup>
 import HatAll from './components/hat.vue'
 import Info from './components/info.vue'
-</script>
+</script>  
