@@ -23,7 +23,7 @@
       </section>
     </main>
   </div>
-</template> 
+</template>  
 
 <script>
 export default {
