@@ -23,7 +23,7 @@
       </section>
     </main>
   </div>
-</template>  
+</template>   
 
 <script>
 export default {
@@ -33,7 +33,7 @@ export default {
       searchQuery: '',
       filter1: '',
       filter2: '',
-    };
+    }; 
   },
   mounted() {
     // Инициализация карты в элементе #container
