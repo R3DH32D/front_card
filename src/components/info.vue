@@ -1,57 +1,177 @@
 <template>
-  <div class="min-h-screen flex flex-col">
-    <main class="container mx-auto flex-1 flex mt-4 info">
-      <!-- Sidebar -->
-      <aside class="w-1/5 bg-gray-100 p-4 shadow-md" style="max-height: 80vh; overflow-y: auto; border-radius: 20px;"> 
-        <div class="mb-4 flex">
-          <input type="text" placeholder="Поиск..." class="w-full p-2 border rounded-l" v-model="searchQuery">
-          <button class="bg-green-500 text-white p-2 rounded-r w-24" @click="search">
-            <i class="fas fa-search"></i>
-          </button>
-        </div>
-        <div class="mb-4">
-          <input type="text" placeholder="Фильтр 1" class="w-full p-2 border rounded" v-model="filter1">
-        </div>
-        <div>
-          <input type="text" placeholder="Фильтр 2" class="w-full p-2 border rounded" v-model="filter2">
-        </div>
-      </aside>
+  <div>
+    <!-- Поля ввода координат стартовой точки -->
+    <input
+      v-model="searchQuery"
+      placeholder="Введите стартовые координаты (lon,lat)"
+      style="margin-bottom: 10px;"
+    />
+    <button
+      @click="handleBuildRoute"
+    >
+      Построить маршрут
+    </button>
 
-      <!-- Map Section -->
-      <section id="container" class="w-3/5 bg-blue-200" style="height: 80vh; border-radius: 20px;">
-        <!-- Карта появится здесь -->
-      </section>
-    </main>
+    <!-- Контейнер карты -->
+    <div
+      id="mapContainer"
+      ref="mapContainer"
+      style="width: 100%; height: 500px; background-color: lightgray;"
+    ></div>
   </div>
-</template>   
+</template>
 
 <script>
+import { ref, onMounted } from 'vue';
+import { load } from '@2gis/mapgl';
+import axios from 'axios';
+
 export default {
   name: 'Info',
-  data() {
-    return {
-      searchQuery: '',
-      filter1: '',
-      filter2: '',
-    }; 
-  },
-  mounted() {
-    // Инициализация карты в элементе #container
-    const map = new mapgl.Map('container', {
-      center: [104.261007,52.262506 ], // Координаты центра (Москва)
-      zoom: 17, // Масштаб
-      key: '793f92c3-a4e6-483b-8fdb-edc8c24895ce', 
-    });
-    window.addEventListener('resize', () => {
-    map.invalidateSize();
-    });
-    // Пример добавления маркера
-    new mapgl.Marker(map, {
-      coordinates: [37.6173, 55.7558], // Координаты маркера
-      icon: 'https://docs.2gis.com/img/favicon-192x192.png', // Иконка маркера
-    });
+  setup() {
+    const searchQuery = ref(''); // ref для ввода координат
+    const mapContainer = ref(null);
+    let map = null;
+    let routeLayer = null;
+
+    // Функция для обработки клика кнопки
+    const handleBuildRoute = () => {
+      console.log('searchQuery:', searchQuery.value); // Логируем значение searchQuery
+
+      if (!searchQuery.value) {
+        alert('Введите координаты в формате "lon,lat"!');
+        return;
+      }
+
+      const coords = searchQuery.value.split(',').map(Number); // Разделяем координаты
+      console.log('Parsed coordinates:', coords); // Проверяем результат
+
+      if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+        alert('Некорректный формат координат! Используйте "lon,lat".');
+        return;
+      }
+
+      buildRoute(coords); // Вызываем построение маршрута
+    };
+
+    const buildRoute = async (startCoordinates) => {
+  const endpoint = 'https://routing.api.2gis.com/routing/7.0.0/global?key=793f92c3-a4e6-483b-8fdb-edc8c24895ce';
+  const body = {
+    points: [
+      {
+        type: 'stop',
+        lon: startCoordinates[0],
+        lat: startCoordinates[1],
+        floor_id: '1',
+      },
+      {
+        type: 'stop',
+        lon: 104.260802,
+        lat: 52.263245,
+        floor_id: '1',
+      },
+    ],
+    locale: 'ru',
+    transport: 'walking',
+    route_mode: 'fastest',
+    traffic_mode: 'jam',
+
+    params: {
+    pedestrian: {
+      use_indoor: false, // Построение маршрута внутри зданий (по умолчанию false)
+      use_instructions: false, // Выдача инструкций по маршруту
+    },
   },
 };
+
+  try {
+    const response = await axios.post(endpoint, body, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    let routes = response.data; // API возвращает массив
+    routes = routes.result
+    console.log('Полный ответ API:', routes);
+
+    // Проверяем, есть ли маршруты
+    if (!routes || routes.length === 0) {
+      console.error('Маршруты не найдены!');
+      return;
+    }
+
+    const route = routes[0]; // Берем первый маршрут
+    console.log('Выбранный маршрут:', route);
+
+    // Проверяем, есть ли маневры
+    const maneuvers = route.maneuvers;
+    if (!maneuvers || maneuvers.length === 0) {
+      console.error('Маневры не найдены в маршруте!');
+      return;
+    }
+
+    // Извлечение геометрии из maneuvers[0].outcoming_path.geometry
+    const geometryData = maneuvers[0]?.outcoming_path?.geometry || [];
+    const coordinates = geometryData.flatMap((path) => {
+      const match = path.selection.match(/LINESTRING\((.+)\)/);
+      if (match) {
+        return match[1].split(',').map((coord) => {
+          const [lon, lat] = coord.trim().split(' ').map(Number);
+          return [lon, lat];
+        });
+      }
+      return [];
+    });
+
+    console.log('Координаты маршрута:', coordinates);
+
+    if (coordinates.length > 0) {
+      drawRoute(coordinates); // Отрисовываем маршрут
+    } else {
+      console.error('Не удалось извлечь координаты маршрута!');
+    }
+  } catch (error) {
+    console.error('Ошибка при построении маршрута:', error.response?.data || error.message);
+  }
+};
+const drawRoute = (coordinates) => {
+  if (routeLayer) {
+    routeLayer.destroy();
+  }
+
+  routeLayer = new mapgl.Polyline(map, {
+    coordinates, // Массив координат
+    width: 5,
+    color: '#FF0000',
+  });
+
+  map.setBounds(routeLayer.getBounds());
+};
+
+    onMounted(async () => {
+      if (mapContainer.value) {
+        const mapgl = await load();
+        map = new mapgl.Map(mapContainer.value, {
+          center: [104.261007, 52.262506],
+          zoom: 17,
+          key: '793f92c3-a4e6-483b-8fdb-edc8c24895ce',
+        });
+
+        window.addEventListener('resize', () => {
+          map.invalidateSize();
+        });
+      } else {
+        console.error('mapContainer не найден');
+      }
+    });
+
+    return {
+      searchQuery,
+      mapContainer,
+      handleBuildRoute,
+    };
+  },
+};
+
 </script>
 
 <style scoped>

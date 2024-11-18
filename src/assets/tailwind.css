@@ -10,6 +10,7 @@
     background-color: rgb(245, 245, 245);
     display: flexbox;
     box-sizing: content-box;
+    
 }
 .hat{
     background-color: rgb(255, 255, 255);
