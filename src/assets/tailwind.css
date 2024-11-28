@@ -50,6 +50,8 @@
     margin-right: -50%;
     transform: translate(-50%, -50%)
 }
-.info{
-
-}
+.rotated {
+    transform: rotate(-90deg);
+    display: block; /* Убедитесь, что у элемента есть display для корректного рендеринга */
+    margin: auto; /* Если нужно выравнивание */
+  }

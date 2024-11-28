@@ -13,11 +13,12 @@
     </button>
 
     <!-- Контейнер карты -->
-    <div
-      id="mapContainer"
-      ref="mapContainer"
-      style="width: 100%; height: 500px; background-color: lightgray;"
-    ></div>
+    <div>
+    <h1>Static SVG</h1>
+    <img :src="require('@/assets/test.svg')" alt="SVG Example"class="rotated" />
+ 
+    </div>
+
   </div>
 </template>
 
