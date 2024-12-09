@@ -26,10 +26,27 @@
       </aside>
 
       <!-- Контейнер для SVG -->
-      <section class="w-3/5 bg-blue-200 p-4" style="max-height: 80vh; overflow-y: auto; border-radius: 20px;">
-        <div>
-          <h1>Статическая SVG карта</h1>
-          <img :src="require('@/assets/test.svg')" alt="SVG Example" class="rotated" />
+      <section class="w-3/5 bg-blue-200 p-4 relative" style="max-height: 80vh; overflow-y: auto; border-radius: 20px;">
+        <!-- Кнопки переключения этажей -->
+        <div class="floor-buttons">
+          <button
+            v-for="(floor, index) in floors"
+            :key="index"
+            :class="['floor-button', { active: currentFloor === floor }]"
+            @click="setCurrentFloor(floor)"
+          >
+            {{ floor }}
+          </button>
+        </div>
+        <!-- Отображение SVG -->
+        <div v-if="currentFloor !== null">
+          <h1>Этаж {{ currentFloor }}</h1>
+          <img
+            v-if="svgPath"
+            :src="svgPath"
+            alt="SVG Example"
+            class="rotated"
+          />
         </div>
       </section>
     </main>
@@ -44,11 +61,26 @@ import axios from 'axios';
 export default {
   name: 'SvgMapWithApi',
   setup() {
-    const searchQuery = ref(''); // Координаты
+    const searchQuery = ref('');
     const filter1 = ref('');
     const filter2 = ref('');
-    let map = null;
-    let routeLayer = null;
+    const floors = [0, 1, 2, 3]; 
+    const currentFloor = ref(1);
+    const svgPath = ref('');
+
+    const setCurrentFloor = (floor) => {
+      currentFloor.value = floor;
+      updateSvgPath();
+    };
+
+    const updateSvgPath = () => {
+      try {
+        svgPath.value = require(`@/assets/test${currentFloor.value}.svg`);
+      } catch (e) {
+        console.error(`Файл для этажа ${currentFloor.value} не найден.`, e);
+        svgPath.value = ''; // Очистка пути, если файл не найден
+      }
+    };
 
     const handleBuildRoute = () => {
       if (!searchQuery.value) {
@@ -125,19 +157,18 @@ export default {
 
     
     onMounted(async () => {
-      const mapgl = await load();
-      map = new mapgl.Map(null, {
-        center: [104.261007, 52.262506],
-        zoom: 17,
-        key: '793f92c3-a4e6-483b-8fdb-edc8c24895ce',
-      });
+      
+      updateSvgPath();
     });
 
     return {
       searchQuery,
       filter1,
       filter2,
-      handleBuildRoute,
+      floors,
+      currentFloor,
+      svgPath,
+      setCurrentFloor,
     };
   },
 };
@@ -154,9 +185,37 @@ body {
 .rotated {
   display: block;
   margin: 10px auto;
-  max-width: 100%; 
+  max-width: 100%;
   width: 480px;
-  height: auto; 
-  transform: rotate(270deg); 
+  height: auto;
+  transform: rotate(270deg);
+}
+
+.floor-buttons {
+  position: absolute;
+  top: 10%;
+  left: 5%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.floor-button {
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: center;
+  line-height: 40px;
+  cursor: pointer;
+}
+
+.floor-button.active {
+  background: #4caf50;
+  color: white;
+  font-weight: bold;
 }
 </style>
