@@ -2,7 +2,7 @@
   <div class="min-h-screen flex flex-col">
     <main class="container mx-auto flex-1 flex mt-4 info">
       <!-- Боковая панель -->
-      <aside class="w-1/5 bg-gray-100 p-4 shadow-md" style="max-height: 80vh; overflow-y: auto; border-radius: 20px;">
+      <aside class="w-1/5 bg-gray-100 p-4 shadow-md" style="max-height: 85vh; overflow-y: auto; border-radius: 20px;">
         <div class="mb-4 flex">
           <input
             type="text"
@@ -26,7 +26,7 @@
       </aside>
 
       <!-- Контейнер для SVG -->
-      <section class="w-3/5 bg-blue-200 p-4 relative" style="max-height: 80vh; overflow-y: auto; border-radius: 20px;">
+      <section class="w-3/5 bg-blue-200 p-4 relative" style="max-height: 85vh; min-width: 80%; overflow-y: auto; border-radius: 20px;">
         <!-- Кнопки переключения этажей -->
         <div class="floor-buttons">
           <button
