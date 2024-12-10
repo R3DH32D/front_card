@@ -6,15 +6,13 @@
         <div class="mb-4 flex">
           <input
             type="text"
-            placeholder="Введите стартовые координаты (lon,lat)"
+            placeholder="Введите кабинет"
             class="w-full p-2 border rounded-l"
             v-model="searchQuery"
+            @input="highlightRoom"
           />
-          <button
-            class="bg-green-500 text-white p-2 rounded-r w-24"
-            @click="handleBuildRoute"
-          >
-            Построить
+          <button class="bg-green-500 text-white p-2 rounded-r w-24" @click="highlightRoom">
+            найти
           </button>
         </div>
         <div class="mb-4">
@@ -26,8 +24,8 @@
       </aside>
 
       <!-- Контейнер для SVG -->
-      <section class="w-3/5 bg-blue-200 p-4 relative" style="max-height: 85vh; min-width: 80%; overflow-y: auto; border-radius: 20px;">
-        <!-- Кнопки переключения этажей -->
+      <section id="svg-container" ref="svgContainer" class="svg-container">
+        <div class="svg-wrapper" v-if="svgContent" v-html="svgContent"></div>
         <div class="floor-buttons">
           <button
             v-for="(floor, index) in floors"
@@ -38,127 +36,76 @@
             {{ floor }}
           </button>
         </div>
-        <!-- Отображение SVG -->
-        <div v-if="currentFloor !== null">
-          <h1>Этаж {{ currentFloor }}</h1>
-          <img
-            v-if="svgPath"
-            :src="svgPath"
-            alt="SVG Example"
-            class="rotated"
-          />
-        </div>
       </section>
     </main>
   </div>
 </template>
 
+
 <script>
-import { ref, onMounted } from 'vue';
-import { load } from '@2gis/mapgl';
-import axios from 'axios';
+import { ref, onMounted, watch } from "vue";
 
 export default {
-  name: 'SvgMapWithApi',
+  name: "SvgMapWithApi",
   setup() {
-    const searchQuery = ref('');
-    const filter1 = ref('');
-    const filter2 = ref('');
-    const floors = [0, 1, 2, 3]; 
+    const searchQuery = ref("");
+    const filter1 = ref("");
+    const filter2 = ref("");
+    const floors = [0, 1, 2, 3];
     const currentFloor = ref(1);
-    const svgPath = ref('');
+    const svgContent = ref("");
 
+    // Загрузка SVG при смене этажа
     const setCurrentFloor = (floor) => {
       currentFloor.value = floor;
-      updateSvgPath();
+      loadSvg();
     };
 
-    const updateSvgPath = () => {
+    const loadSvg = async () => {
       try {
-        svgPath.value = require(`@/assets/test${currentFloor.value}.svg`);
-      } catch (e) {
-        console.error(`Файл для этажа ${currentFloor.value} не найден.`, e);
-        svgPath.value = ''; // Очистка пути, если файл не найден
-      }
-    };
-
-    const handleBuildRoute = () => {
-      if (!searchQuery.value) {
-        alert('Введите координаты в формате "lon,lat"!');
-        return;
-      }
-
-      const coords = searchQuery.value.split(',').map(Number);
-      if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
-        alert('Некорректный формат координат! Используйте "lon,lat".');
-        return;
-      }
-
-      buildRoute(coords); // Вызываем логику построения маршрута
-    };
-
-    const buildRoute = async (startCoordinates) => {
-      const endpoint =
-        'https://routing.api.2gis.com/routing/7.0.0/global?key=793f92c3-a4e6-483b-8fdb-edc8c24895ce';
-      const body = {
-        points: [
-          {
-            type: 'stop',
-            lon: startCoordinates[0],
-            lat: startCoordinates[1],
-            floor_id: '1',
-          },
-          {
-            type: 'stop',
-            lon: 104.260802,
-            lat: 52.263245,
-            floor_id: '1',
-          },
-        ],
-        locale: 'ru',
-        transport: 'walking',
-        route_mode: 'fastest',
-        traffic_mode: 'jam',
-      };
-
-      try {
-        const response = await axios.post(endpoint, body, {
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        let routes = response.data.result.routes;
-        console.log('Ответ API:', routes);
-
-        if (!routes || routes.length === 0) {
-          console.error('Маршруты не найдены!');
-          return;
-        }
-
-        const route = routes[0];
-        const coordinates = route.geometry.points.map(([lon, lat]) => [lon, lat]);
-        console.log('Координаты маршрута:', coordinates);
-
-        if (coordinates.length > 0) {
-          drawRoute(coordinates); 
-        }
+        const response = await fetch(require(`@/assets/test${currentFloor.value}.svg`));
+        svgContent.value = await response.text();
       } catch (error) {
-        console.error('Ошибка при построении маршрута:', error.response?.data || error.message);
+        console.error(`Ошибка загрузки SVG для этажа ${currentFloor.value}:`, error);
+        svgContent.value = ""; // Очищаем содержимое при ошибке
       }
     };
 
-    const drawRoute = (coordinates) => {
-      if (routeLayer) {
-        routeLayer.destroy();
+    const highlightRoom = () => {
+      if (!svgContent.value) return;
+
+      // Парсим содержимое SVG
+      const parser = new DOMParser();
+      const svgDocument = parser.parseFromString(svgContent.value, "image/svg+xml");
+      const svgElement = svgDocument.querySelector("svg");
+
+      // Очищаем предыдущую подсветку
+      svgElement.querySelectorAll("text").forEach((text) => {
+        text.removeAttribute("fill");
+        text.removeAttribute("stroke");
+        text.style.strokeWidth = "";
+      });
+
+      // Поиск текста для подсветки
+      const query = searchQuery.value.trim().toLowerCase();
+      const matchingText = Array.from(svgElement.querySelectorAll("text")).find(
+        (textElement) => textElement.textContent.trim().toLowerCase() === query
+      );
+
+      if (matchingText) {
+        matchingText.setAttribute("fill", "yellow");
+        matchingText.setAttribute("stroke", "orange");
+        matchingText.style.strokeWidth = "2";
       }
 
-      
-      console.log('Рисуем маршрут:', coordinates);
+      // Обновляем отображение
+      svgContent.value = new XMLSerializer().serializeToString(svgElement);
     };
 
-    
-    onMounted(async () => {
-      
-      updateSvgPath();
+    watch(currentFloor, loadSvg);
+
+    onMounted(() => {
+      loadSvg();
     });
 
     return {
@@ -167,30 +114,44 @@ export default {
       filter2,
       floors,
       currentFloor,
-      svgPath,
+      svgContent,
       setCurrentFloor,
+      highlightRoom,
     };
   },
 };
 </script>
 
+
+
 <style scoped>
-html,
-body {
-  margin: 0;
-  padding: 0;
+.svg-container {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  height: 85vh; /* Высота карты */
+  width: 100%;
+  background-color: #add8e6;
+  border-radius: 20px;
+  overflow: hidden;
+  padding-bottom: 10%; /* Увеличим отступ сверху для подъема карты */
+}
+
+.svg-wrapper {
+  width: 100%;
   height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform: rotate(-90deg);
 }
 
-.rotated {
-  display: block;
-  margin: 10px auto;
-  max-width: 100%;
-  width: 480px;
-  height: auto;
-  transform: rotate(270deg);
+svg {
+  transform: rotate(-90deg); /* Поворот SVG */
+  transform-origin: center center;
+  width: 100%;  /* Растягиваем по ширине */
+  height: auto; /* Автоматическая высота */
 }
-
 .floor-buttons {
   position: absolute;
   top: 10%;
@@ -219,3 +180,5 @@ body {
   font-weight: bold;
 }
 </style>
+
+
