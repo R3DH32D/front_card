@@ -4,13 +4,8 @@
       <!-- Боковая панель -->
       <aside class="w-1/5 bg-gray-100 p-4 shadow-md" style="max-height: 85vh; overflow-y: auto; border-radius: 20px;">
         <div class="mb-4 flex">
-          <input
-            type="text"
-            placeholder="Введите кабинет"
-            class="w-full p-2 border rounded-l"
-            v-model="searchQuery"
-            @input="highlightRoom"
-          />
+          <input type="text" placeholder="Введите кабинет" class="w-full p-2 border rounded-l" v-model="searchQuery"
+            @input="highlightRoom" />
           <button class="bg-green-500 text-white p-2 rounded-r w-24" @click="highlightRoom">
             найти
           </button>
@@ -27,12 +22,8 @@
       <section id="svg-container" ref="svgContainer" class="svg-container">
         <div class="svg-wrapper" v-if="svgContent" v-html="svgContent"></div>
         <div class="floor-buttons">
-          <button
-            v-for="(floor, index) in floors"
-            :key="index"
-            :class="['floor-button', { active: currentFloor === floor }]"
-            @click="setCurrentFloor(floor)"
-          >
+          <button v-for="(floor, index) in floors" :key="index"
+            :class="['floor-button', { active: currentFloor === floor }]" @click="setCurrentFloor(floor)">
             {{ floor }}
           </button>
         </div>
@@ -80,27 +71,39 @@ export default {
       const svgElement = svgDocument.querySelector("svg");
 
       // Очищаем предыдущую подсветку
-      svgElement.querySelectorAll("text").forEach((text) => {
-        text.removeAttribute("fill");
-        text.removeAttribute("stroke");
-        text.style.strokeWidth = "";
+      svgElement.querySelectorAll("text, tspan").forEach((el) => {
+        el.removeAttribute("fill");
+        el.removeAttribute("stroke");
+        el.style.strokeWidth = "";
       });
 
       // Поиск текста для подсветки
       const query = searchQuery.value.trim().toLowerCase();
-      const matchingText = Array.from(svgElement.querySelectorAll("text")).find(
-        (textElement) => textElement.textContent.trim().toLowerCase() === query
+      const matchingText = Array.from(svgElement.querySelectorAll("tspan")).find(
+        (tspanElement) => tspanElement.textContent.trim().toLowerCase() === query
       );
 
       if (matchingText) {
-        matchingText.setAttribute("fill", "yellow");
-        matchingText.setAttribute("stroke", "orange");
-        matchingText.style.strokeWidth = "2";
+        const matchingTextParent = matchingText.closest("text");
+        if (matchingTextParent) {
+          // Устанавливаем подсветку с учётом цветов
+          matchingTextParent.style.fill = "yellow";
+          matchingTextParent.style.stroke = "orange";
+          matchingTextParent.style.strokeWidth = "0.3";
+
+          // Важно: Убедитесь, что стиль SVG поддерживает эти атрибуты
+          // Например, если fill и stroke перекрываются, fill может не отображаться.
+        }
+      } else {
+        console.error(`Не найден текст: ${query}`);
       }
 
       // Обновляем отображение
       svgContent.value = new XMLSerializer().serializeToString(svgElement);
     };
+
+
+
 
     watch(currentFloor, loadSvg);
 
@@ -129,12 +132,14 @@ export default {
   display: flex;
   justify-content: center;
   position: relative;
-  height: 85vh; /* Высота карты */
+  height: 85vh;
+  /* Высота карты */
   width: 100%;
   background-color: #add8e6;
   border-radius: 20px;
   overflow: hidden;
-  padding-bottom: 10%; /* Увеличим отступ сверху для подъема карты */
+  padding-bottom: 10%;
+  /* Увеличим отступ сверху для подъема карты */
 }
 
 .svg-wrapper {
@@ -147,11 +152,15 @@ export default {
 }
 
 svg {
-  transform: rotate(-90deg); /* Поворот SVG */
+  transform: rotate(-90deg);
+  /* Поворот SVG */
   transform-origin: center center;
-  width: 100%;  /* Растягиваем по ширине */
-  height: auto; /* Автоматическая высота */
+  width: 100%;
+  /* Растягиваем по ширине */
+  height: auto;
+  /* Автоматическая высота */
 }
+
 .floor-buttons {
   position: absolute;
   top: 10%;
@@ -180,5 +189,3 @@ svg {
   font-weight: bold;
 }
 </style>
-
-
