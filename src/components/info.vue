@@ -56,6 +56,7 @@ export default {
       try {
         const response = await fetch(require(`@/assets/test${currentFloor.value}.svg`));
         svgContent.value = await response.text();
+        drawRoute();
       } catch (error) {
         console.error(`Ошибка загрузки SVG для этажа ${currentFloor.value}:`, error);
         svgContent.value = ""; // Очищаем содержимое при ошибке
@@ -65,19 +66,16 @@ export default {
     const highlightRoom = () => {
       if (!svgContent.value) return;
 
-      // Парсим содержимое SVG
       const parser = new DOMParser();
       const svgDocument = parser.parseFromString(svgContent.value, "image/svg+xml");
       const svgElement = svgDocument.querySelector("svg");
 
-      // Очищаем предыдущую подсветку
       svgElement.querySelectorAll("text, tspan").forEach((el) => {
         el.removeAttribute("fill");
         el.removeAttribute("stroke");
         el.style.strokeWidth = "";
       });
 
-      // Поиск текста для подсветки
       const query = searchQuery.value.trim().toLowerCase();
       const matchingText = Array.from(svgElement.querySelectorAll("tspan")).find(
         (tspanElement) => tspanElement.textContent.trim().toLowerCase() === query
@@ -86,24 +84,34 @@ export default {
       if (matchingText) {
         const matchingTextParent = matchingText.closest("text");
         if (matchingTextParent) {
-          // Устанавливаем подсветку с учётом цветов
           matchingTextParent.style.fill = "yellow";
           matchingTextParent.style.stroke = "orange";
           matchingTextParent.style.strokeWidth = "0.3";
-
-          // Важно: Убедитесь, что стиль SVG поддерживает эти атрибуты
-          // Например, если fill и stroke перекрываются, fill может не отображаться.
         }
       } else {
         console.error(`Не найден текст: ${query}`);
       }
 
-      // Обновляем отображение
       svgContent.value = new XMLSerializer().serializeToString(svgElement);
+      drawRoute();
     };
 
+    const drawRoute = () => {
+      if (!svgContent.value || currentFloor.value !== 2) return;
 
+      const parser = new DOMParser();
+      const svgDocument = parser.parseFromString(svgContent.value, "image/svg+xml");
+      const svgElement = svgDocument.querySelector("svg");
 
+      const routePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      routePath.setAttribute("d", "M50,50 L100,100 L200,100 L250,150"); // Пример пути
+      routePath.setAttribute("stroke", "red");
+      routePath.setAttribute("stroke-width", "2");
+      routePath.setAttribute("fill", "none");
+      svgElement.appendChild(routePath);
+
+      svgContent.value = new XMLSerializer().serializeToString(svgElement);
+    };
 
     watch(currentFloor, loadSvg);
 
@@ -126,20 +134,17 @@ export default {
 </script>
 
 
-
 <style scoped>
 .svg-container {
   display: flex;
   justify-content: center;
   position: relative;
   height: 85vh;
-  /* Высота карты */
   width: 100%;
   background-color: #add8e6;
   border-radius: 20px;
   overflow: hidden;
   padding-bottom: 10%;
-  /* Увеличим отступ сверху для подъема карты */
 }
 
 .svg-wrapper {
@@ -153,12 +158,9 @@ export default {
 
 svg {
   transform: rotate(-90deg);
-  /* Поворот SVG */
   transform-origin: center center;
   width: 100%;
-  /* Растягиваем по ширине */
   height: auto;
-  /* Автоматическая высота */
 }
 
 .floor-buttons {
